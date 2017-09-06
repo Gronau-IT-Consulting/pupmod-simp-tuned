@@ -52,42 +52,48 @@ class tuned (
   Boolean           $cputuning_enable         = true
 ) {
 
-  $ktune_name = 'tuned'
+  if $facts['os']['name'] in ['RedHat','CentOS'] {
+    $ktune_name = 'tuned'
 
-  file { '/etc/tuned.conf':
-    owner   => 'root',
-    group   => 'root',
-    mode    => '0640',
-    content => template('tuned/etc/tuned.conf.erb'),
-    notify  => Service[$ktune_name]
+    file { '/etc/tuned.conf':
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0640',
+      content => template('tuned/etc/tuned.conf.erb'),
+      notify  => Service[$ktune_name]
+    }
+
+    file { '/etc/sysconfig/ktune':
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0640',
+      content => template('tuned/etc/sysconfig/ktune.erb')
+    }
+
+    file { '/etc/sysctl.ktune':
+      ensure => 'present',
+      owner  => 'root',
+      group  => 'root',
+      mode   => '0640'
+    }
+
+    package { $ktune_name:
+      ensure => 'latest'
+    }
+
+    service { $ktune_name:
+      ensure     => 'running',
+      enable     => true,
+      hasrestart => true,
+      hasstatus  => true,
+      require    => [
+        Package[$ktune_name],
+        File['/etc/sysconfig/ktune']
+      ]
+    }
   }
-
-  file { '/etc/sysconfig/ktune':
-    owner   => 'root',
-    group   => 'root',
-    mode    => '0640',
-    content => template('tuned/etc/sysconfig/ktune.erb')
-  }
-
-  file { '/etc/sysctl.ktune':
-    ensure => 'present',
-    owner  => 'root',
-    group  => 'root',
-    mode   => '0640'
-  }
-
-  package { $ktune_name:
-    ensure => 'latest'
-  }
-
-  service { $ktune_name:
-    ensure     => 'running',
-    enable     => true,
-    hasrestart => true,
-    hasstatus  => true,
-    require    => [
-      Package[$ktune_name],
-      File['/etc/sysconfig/ktune']
-    ]
+  else {
+    warning("Error: ${facts['os']['name']} is not yet supported by module '${module_name}'")
+    notify { "Error: ${facts['os']['name']} is not yet supported by module '${module_name}'": }
   }
 }
